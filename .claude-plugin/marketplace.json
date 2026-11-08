@@ -1,0 +1,17 @@
+{
+  "name": "ticket-creator",
+  "owner": {
+    "name": "Andrew He",
+    "url": "https://github.com/andrewhe6"
+  },
+  "description": "Ticket Creator: turn features and specs into modular tickets on GitHub Issues, Linear, or Jira.",
+  "plugins": [
+    {
+      "name": "ticket-creator",
+      "source": "./",
+      "description": "Break features, PRDs, codebases, or new-project ideas into modular, agent-ready tickets and push them to GitHub Issues, Linear, or Jira.",
+      "category": "productivity",
+      "tags": ["tickets", "planning", "github", "linear", "jira"]
+    }
+  ]
+}

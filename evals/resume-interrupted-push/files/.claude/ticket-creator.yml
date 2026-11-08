@@ -1,0 +1,17 @@
+version: 1
+platform: github
+drafts_dir: tickets
+defaults:
+  priority: medium
+  max_size: M
+  labels: []
+  create_missing_labels: ask
+type_labels: { feature: feature, enabler: enabler, bug: bug, chore: chore, spike: spike }
+estimates: { XS: 1, S: 2, M: 3, L: 5, XL: 8 }
+github:
+  repo: acme-example-org/todo-app
+  epic_label: epic
+  cli: .fakegh/fake_gh.py   # stand-in for the GitHub CLI in this eval
+  use_issue_types: auto
+  size_as: label
+  priority_as: label

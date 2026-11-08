@@ -1,0 +1,73 @@
+# ticket-creator settings for this project.
+# Safe to commit: holds no secrets (auth lives in your MCP server or CLI login).
+# Full reference: references/config.md in the ticket-creator skill.
+version: 1
+
+# Where tickets are pushed: github | linear | jira | markdown (drafts only)
+platform: github
+
+# Draft folder, one subfolder per epic. Commit it to keep a record that links to the
+# created tickets, or add it to .gitignore if you only want the board.
+drafts_dir: tickets
+
+# Optional: the team's own ticket template (its ## headings become the required sections) and
+# written ticket guidelines to follow. Paths are relative to the project root.
+# template: .github/ISSUE_TEMPLATE/story.md
+# conventions: docs/ticket-guidelines.md
+
+defaults:
+  priority: medium        # urgent | high | medium | low | none
+  max_size: M             # biggest allowed ticket; anything larger gets split (M = ~1 day)
+  labels: []              # added to every ticket
+  create_missing_labels: ask   # ask | always | never
+  slicing: null           # vertical+enablers | vertical | horizontal, once the team has chosen
+
+# Ticket type -> label (or issue type where the platform has them)
+type_labels:
+  feature: feature
+  enabler: enabler
+  bug: bug
+  chore: chore
+  spike: spike
+  task: task
+
+# T-shirt size -> number, for platforms that store estimates as numbers
+estimates:
+  XS: 1
+  S: 2
+  M: 3
+  L: 5
+  XL: 8
+
+# ---- keep only the section for your platform ---------------------------------------
+
+github:
+  repo: owner/repo
+  # cli: gh               # command that runs the GitHub CLI, if it isn't `gh` on the PATH
+  epic_label: epic
+  use_issue_types: auto   # auto (use org issue types if they exist) | true | false
+  size_as: label          # label -> "size: M" | project_field
+  priority_as: label      # label -> "priority: high" | project_field | issue_field
+  project:                # optional GitHub Projects (v2) board; delete the block if unused
+    owner: owner          # org or user login that owns the project
+    number: 1
+    status_field: Status
+    status: Backlog
+    size_field: Size      # used when size_as: project_field
+    priority_field: Priority
+
+linear:
+  team: ENG               # team key
+  epic_as: project        # project | parent_issue
+  state: Backlog          # workflow state name for new issues
+  cycle: none             # none | current | next
+  estimate_scale: auto    # auto (read the team setting) | fibonacci | exponential | linear | tshirt
+
+jira:
+  site: yourcompany.atlassian.net
+  project_key: PROJ
+  epic_type: Epic
+  ticket_type: Story      # Story | Task
+  story_points_field: null   # discovered on first push and saved here, e.g. customfield_10016
+  link_type: Blocks
+  sprint: backlog         # backlog | active | next

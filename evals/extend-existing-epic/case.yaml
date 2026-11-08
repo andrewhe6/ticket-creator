@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: extend-existing-epic
+expected_outcome: |
+  Exactly one new ticket (T07) is added to the existing tickets/todo-due-dates-reminders/ epic, without creating a new epic or touching the six existing ticket files. It depends on the reminder job ticket, follows the same five-section format, and is grounded in the real code (users table, public/app.js, the reminder job). The epic's ticket overview includes it, and the epic no longer lists opt-out as a non-goal (or clearly flags the change). Nothing is pushed.
+context:
+  scaffold_script: place-files.sh

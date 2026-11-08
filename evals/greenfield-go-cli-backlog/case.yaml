@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: greenfield-go-cli-backlog
+expected_outcome: |
+  A greenfield backlog drafted locally as several epics, starting with a walking-skeleton epic
+  (Go module scaffold, CI running go test/lint, a thin end-to-end vault-to-HTML path) that later epics
+  depend on. Feature epics cover wikilink resolution, frontmatter tags with tag index pages, the
+  privacy rules (private/ folder and publish: false, treated as a hard guarantee with tests), and
+  publishing to GitHub Pages. No irrelevant enablers (databases, user auth, servers). Tickets are
+  small, agent-ready, verified with `go test ./...`, and the assumptions (Go version, markdown
+  library, Pages deploy method) are written down. Jira is noted as the target with project key NS,
+  and nothing is pushed.
