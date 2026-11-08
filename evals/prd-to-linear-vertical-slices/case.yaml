@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: prd-to-linear-vertical-slices
+expected_outcome: |
+  An epic plus vertically sliced tickets drafted locally for Linear (nothing created in Linear).
+  Every PRD requirement R1-R8 and the non-functional requirements (hashed tokens, audit log, email
+  accessibility) are covered by at least one ticket; the PRD's non-goals (SSO/SCIM, CSV bulk invite,
+  shareable join links, member invites) get no tickets. Slices are end-to-end user behaviours rather
+  than frontend/backend layers. The 7-day expiry and the 20-invites-per-hour limit appear as
+  acceptance criteria. Because there is no codebase, technical notes are marked as proposed rather
+  than citing invented file paths. Assumptions and the PRD's open question are recorded in the epic.
+context:
+  scaffold_script: place-files.sh

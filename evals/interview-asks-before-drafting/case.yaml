@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: interview-asks-before-drafting
+expected_outcome: |
+  The request leaves decisions open that change the tickets (view-only or edit access, sharing with
+  people who have no account, how access is granted and revoked, notifications). The code shows todos
+  belong to a single user and there is no sharing or team model. Without a question tool, the run should
+  say what it learned, ask up to four self-contained questions with recommended defaults, and stop
+  without writing drafts. It doesn't ask what the repo already answers.
+context:
+  scaffold_script: place-files.sh

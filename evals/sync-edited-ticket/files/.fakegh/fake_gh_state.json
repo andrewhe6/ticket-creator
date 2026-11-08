@@ -1,0 +1,211 @@
+{
+  "repos": {
+    "acme-example-org/todo-app": {
+      "visibility": "PRIVATE",
+      "viewerPermission": "WRITE",
+      "isArchived": false,
+      "labels": [
+        "bug",
+        "enhancement",
+        "documentation",
+        "epic",
+        "enabler",
+        "size: XS",
+        "priority: high",
+        "backend",
+        "database",
+        "size: S",
+        "priority: medium",
+        "email",
+        "feature",
+        "api",
+        "size: M",
+        "frontend",
+        "chore",
+        "ops"
+      ],
+      "issues": [
+        {
+          "number": 1,
+          "id": 1001,
+          "title": "Todo due dates & morning reminder emails",
+          "body": "## Goal\n\nUsers can give a todo an optional due date, set and changed from the API and the web UI. Every morning, anyone with open todos due that day gets one email listing them. We'll know it works when teammates with something due get exactly one reminder that morning in production, and people with nothing due get no email.\n\n## Background\n\n- **Request** (chat, 2026-11-06): \"add due dates to todos + a reminder email in the morning for anything that's due that day.\" The team tracks work in GitHub Issues (`acme-example-org/todo-app` per `.claude/ticket-creator.yml`). These are **drafts only**; nothing has been pushed.\n- **Stack** (`package.json`, todo-app 0.4.0): Express + better-sqlite3 + zod API in `src/`, vanilla JS frontend in `public/`, vitest + supertest API tests in `tests/`. Commands: `npm test`, `npm run lint`, `npm run dev`, `npm run db:migrate`. ESM project (`\"type\": \"module\"`, imports use `.js` suffixes).\n- **Data**: `users(id, email, display_name)` and `todos(id, user_id, title, done, created_at)` in `src/db/migrations/001_create_users_todos.sql`. Migrations are numbered `.sql` files applied in order by `src/db/index.ts: migrate()`, which runs on every `openDb()`. There's no due date column today.\n- **Users and email**: users are identified by the `X-User-Id` header from the internal auth proxy (`src/app.ts`). Every user already has an `email` in `users` (synced nightly from the directory), so reminders don't need to collect addresses. No per-user timezone is stored.\n- **Missing infrastructure**: the app has no email sending, no scheduler or background jobs, and no config library. Env vars are read directly (`DB_PATH`, `PORT` in `src/server.ts`).\n- **API shape**: responses are DB rows spread through `toTodo()` in `src/services/todoService.ts`, so field names are snake_case (`user_id`, `created_at`). The new field follows suit: `due_date`.\n- **Pre-existing issues I noticed, not ticketed here**: `public/index.html` links `styles.css`, which isn't in `public/`. I didn't find a `tsconfig.json` or an ESLint config, though `npm run build` and `npm run lint` expect them. Check that those commands work on main before relying on them in review.\n\n## Non-goals\n\n- Due *times* or per-todo reminder times (dates only)\n- Per-user timezones or per-user send times\n- Opt-out or notification preference settings\n- Reminders for overdue todos (due before today) or advance reminders (\"due tomorrow\")\n- Overdue highlighting, sorting, or filtering by due date in the UI\n- Other channels (Slack, push) and HTML email templates\n- Recurring todos\n\n## Assumptions & open questions\n\nThe user was unavailable during drafting and asked me to make reasonable calls, so every interview question below was answered with the recommended default. Please review these before pushing.\n\n1. **Slicing strategy** *(assumed)*: vertical slices + enablers. This is the usual fit for a product feature in an existing codebase. Two enablers are split out: the DB column (needed by the API, UI, and job) and the email service (a new dependency plus config, and it lets the job be tested with a fake).\n2. **Due date granularity** *(assumed)*: date only, stored as `TEXT` `YYYY-MM-DD`, nullable. Past dates are allowed (no validation against \"today\").\n3. **What \"morning\" and \"today\" mean** *(assumed)*: the job runs at 08:00. \"Today\" is evaluated in one team-wide IANA timezone, `REMINDER_TIMEZONE`, which defaults to the host's timezone so it agrees with the scheduler's clock. *(open)* Which timezone is the team in, and is anyone far enough away that a single send time would be a problem? Per-user timezones would need a new `users` column, and that table is synced nightly from the directory, so it'd need a decision on who owns that field.\n4. **Email content** *(assumed)*: one plain-text digest per user per day listing all their *open* (`done = 0`) todos due that day. No email when nothing is due. Done todos are excluded. *(open)* Should overdue, still-open todos be included too? That would be a small follow-up to #5.\n5. **Email delivery** *(assumed)*: SMTP via `nodemailer`, configured by `SMTP_URL` and `MAIL_FROM`. SMTP works with nearly every provider (SES, SendGrid, Postmark, or an internal relay). *(open)* Which provider or relay, and which from-address? This only blocks #7. #3 and #5 can be built and tested with the console and in-memory mailers.\n6. **Scheduling** *(assumed)*: a standalone script (`npm run job:due-reminders`) triggered by the host's scheduler, not an in-process timer in `src/server.ts`. In-process timers miss runs across restarts and double-send with more than one instance. Sends are recorded per (user, date), so re-runs are safe. *(open)* Where does production run? Nothing in the repo shows it (no Dockerfile, CI, or process manager config). #7 starts by confirming this.\n7. **No opt-out in v1** *(assumed)*: this is an internal tool with users from the directory, and the email only goes out on days something is due. *(open)* If you want an opt-out, it'd be one more S ticket blocked by #5 (a column on `users` or a new preferences table, plus a toggle in the UI).\n8. **API field name** *(assumed)*: `due_date` in both requests and responses, matching the existing snake_case response fields.\n9. **UI** *(assumed)*: a native `<input type=\"date\">` on the add form and on each todo row, which both shows and edits the date. No overdue styling.\n10. **Rollout** *(assumed)*: no feature flag. Due dates are additive and backwards compatible. Reminders stay off until #7 schedules the job in production.\n11. **Priority** *(assumed)*: no deadline was given. #2 is high because it's on the critical path for three tickets. Everything else is medium.\n\n## Existing work\n\nNot checked; please search before pushing. The read-only search `gh issue list -R acme-example-org/todo-app --search \"due date\" --state all` failed with \"Could not resolve to a Repository with the name 'acme-example-org/todo-app'\". Either the repo name in `.claude/ticket-creator.yml` is wrong, or the logged-in `gh` account can't see it. There were no other local drafts under `tickets/`. Suggested searches once the repo is reachable: `due date`, `reminder`, `email`, and `label:epic is:open` (to find an existing epic these could go under).\n\n## Definition of done\n\n- [ ] All tickets below are closed\n- [ ] In production, a teammate with an open todo due today receives exactly one reminder email that morning, and teammates with nothing due receive none\n- [ ] README documents the `due_date` API field, the mail env vars, and how the reminder job is scheduled and safely re-run\n- [ ] The open questions above are answered, or moved into follow-up issues\n\n## Plan\n\n### Tickets\n\n| ID | Ticket | Type | Size | Priority | Blocked by | Wave |\n|---|---|---|---|---|---|---|\n| [#2](https://github.com/acme-example-org/todo-app/issues/2) | Todos table stores an optional due date | enabler | XS | high | - | 1 |\n| [#3](https://github.com/acme-example-org/todo-app/issues/3) | Email service with SMTP transport and console and in-memory dev mailers | enabler | S | medium | - | 1 |\n| [#4](https://github.com/acme-example-org/todo-app/issues/4) | Todo API lets clients set, change, and clear a due date | feature | S | medium | [#2](https://github.com/acme-example-org/todo-app/issues/2) | 2 |\n| [#5](https://github.com/acme-example-org/todo-app/issues/5) | Users get one morning email listing their open todos due today | feature | M | medium | [#2](https://github.com/acme-example-org/todo-app/issues/2), [#3](https://github.com/acme-example-org/todo-app/issues/3) | 2 |\n| [#6](https://github.com/acme-example-org/todo-app/issues/6) | Users can set, see, change, and clear a due date in the web app | feature | S | medium | [#4](https://github.com/acme-example-org/todo-app/issues/4) | 3 |\n| [#7](https://github.com/acme-example-org/todo-app/issues/7) | Reminder job runs automatically every morning in production | chore | S | medium | [#5](https://github.com/acme-example-org/todo-app/issues/5) | 3 |\n\n**6 tickets** \u00b7 1 XS, 4 S, 1 M \u00b7 about 3 dev-days of work for one developer (XS \u2248 1 h, S \u2248 \u00bd day, M \u2248 1 day)\n\n### Build order\n\n- **Wave 1 - start here, in parallel:** #2, #3\n- **Wave 2 - in parallel:** #4, #5\n- **Wave 3 - in parallel:** #6, #7\n\n### Dependency graph\n\n```mermaid\ngraph TD\n  T01[\"T01: Todos table stores an optional due date (XS)\"]\n  T02[\"T02: Email service with SMTP transport and console and in-memory dev mailers (S)\"]\n  T03[\"T03: Todo API lets clients set, change, and clear a due date (S)\"]\n  T04[\"T04: Users get one morning email listing their open todos due today (M)\"]\n  T05[\"T05: Users can set, see, change, and clear a due date in the web app (S)\"]\n  T06[\"T06: Reminder job runs automatically every morning in production (S)\"]\n  T01 --> T03\n  T01 --> T04\n  T02 --> T04\n  T03 --> T05\n  T04 --> T06\n```\n",
+          "state": "open",
+          "labels": [
+            "epic"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": null,
+          "blocked_by": [],
+          "sub_issues": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "number": 2,
+          "id": 1002,
+          "title": "Todos table stores an optional due date",
+          "body": "**Epic:** #1 \u00b7 **Size:** XS\n\n## Context\n\nWe're adding due dates to todos so people can get a morning email for anything due that day (chat request, 2026-11-06). This ticket only adds the storage. It's a separate enabler because three tickets need the column: the API (#4), the reminder job (#5), and through the API, the web UI (#6).\n\n## Scope\n\n**In scope**\n- A new migration, `src/db/migrations/002_add_todo_due_date.sql`, that adds a nullable `due_date TEXT` column to `todos`. The format is `YYYY-MM-DD`, and `NULL` means no due date.\n- A partial index on `due_date` for open todos, which supports the reminder query in #5\n- `due_date: string | null` added to the `Todo` interface in `src/services/todoService.ts`\n\n**Out of scope**\n- Accepting or validating `due_date` in `POST`/`PATCH` (#4)\n- Any UI (#6)\n- The reminder query and the `reminder_sends` table (#5)\n- Due times or timezones (dates only)\n\n## Acceptance criteria\n\n- [ ] Given a fresh database, when migrations run, then `todos` has a nullable `due_date` column and `schema_migrations` contains `002_add_todo_due_date.sql`\n- [ ] Given a database that only has `001_create_users_todos.sql` applied and already holds todos, when `migrate()` runs, then the migration applies once, existing todos keep all their data, and their `due_date` is `NULL`\n- [ ] Running `migrate()` a second time is a no-op\n- [ ] `GET /api/todos` includes `due_date: null` on every existing todo, and no other response field changes\n\n## Technical notes\n\n- Relevant code: `src/db/index.ts: migrate()` runs every `*.sql` file in `src/db/migrations/` in sorted filename order and records each one in `schema_migrations`. Follow the style of `001_create_users_todos.sql`.\n- Approach:\n  - `ALTER TABLE todos ADD COLUMN due_date TEXT;`\n  - `CREATE INDEX todos_due_date_open ON todos(due_date) WHERE done = 0;`\n  - A nullable column needs no backfill.\n  - `toTodo()` spreads the DB row, so once the interface is updated, the column shows up in API responses without any route changes.\n- Watch out for:\n  - `migrate()` runs each file with `db.exec` and no transaction. Keep the file to these two statements so a partial failure is easy to reason about.\n  - Numbering: #5 adds `003_create_reminder_sends.sql`, so keep this file as `002_`.\n  - The `INSERT`/`UPDATE` statements in `todoService` list their columns explicitly, so they're unaffected. Writing `due_date` is #4's job.\n- Same wave: #3 (email service) doesn't touch any of these files.\n\n## Verification\n\n- Automated: add tests to `tests/todos.test.ts`, or a new `tests/migrations.test.ts`:\n  - On a fresh `:memory:` DB, after `migrate(db)`, `PRAGMA table_info(todos)` lists `due_date`.\n  - Upgrade path: on a `:memory:` DB, exec only `001_create_users_todos.sql`, record it in `schema_migrations`, and insert a user and a todo. Then call `migrate(db)` and assert the todo has `due_date === null`. Call `migrate(db)` again and expect no error.\n  - Run `npm test`.\n- Manual: against an existing local `todo.db`, run `npm run db:migrate` and then `npm run dev`. `curl -H \"X-User-Id: 1\" http://localhost:3000/api/todos` should show `\"due_date\": null` on each todo.\n",
+          "state": "open",
+          "labels": [
+            "enabler",
+            "size: XS",
+            "priority: high",
+            "backend",
+            "database"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": 1,
+          "blocked_by": [],
+          "sub_issues": []
+        },
+        {
+          "number": 3,
+          "id": 1003,
+          "title": "Email service with SMTP transport and console and in-memory dev mailers",
+          "body": "**Epic:** #1 \u00b7 **Size:** S\n\n## Context\n\nThe morning reminder (#5, \"a reminder email in the morning for anything that's due that day\") has to send email, and the app can't do that today. Its only runtime dependencies are `express`, `better-sqlite3`, and `zod`. This enabler adds a small mailer module. It's split out for two reasons: it brings in a new third-party dependency and new env config worth reviewing on their own, and it lets #5 be built and tested against a fake without a real provider.\n\n## Scope\n\n**In scope**\n- A `Mailer` interface: `send({ to, subject, text }): Promise<void>` (plain text only)\n- An SMTP mailer built on `nodemailer`, configured by `SMTP_URL` and `MAIL_FROM`\n- A console mailer for local dev that prints messages instead of sending them\n- An in-memory mailer for tests that records what it was asked to send\n- `createMailerFromEnv()`, which picks a mailer from `MAIL_TRANSPORT` (`console` by default, or `smtp`) and fails fast with a clear message when config is missing\n- A README section listing the new env vars\n\n**Out of scope**\n- Choosing the production provider and credentials (#7)\n- Reminder logic and email content (#5)\n- HTML email, templates, attachments, retries, or queues\n- Wiring the mailer into `src/server.ts` or any route (nothing sends email yet)\n\n## Acceptance criteria\n\n- [ ] With `MAIL_TRANSPORT` unset, `createMailerFromEnv()` returns the console mailer, and `send()` prints to/subject/text to stdout without sending anything\n- [ ] With `MAIL_TRANSPORT=smtp`, `SMTP_URL`, and `MAIL_FROM` set, `send()` delivers a plain-text message with `From: <MAIL_FROM>` through that SMTP server\n- [ ] With `MAIL_TRANSPORT=smtp` and `SMTP_URL` or `MAIL_FROM` missing, `createMailerFromEnv()` throws immediately with an error that names the missing variable(s), rather than failing on first send\n- [ ] An unknown `MAIL_TRANSPORT` value throws an error that lists the allowed values\n- [ ] The in-memory mailer exposes the messages it received, in order\n- [ ] A failed SMTP send rejects the promise returned by `send()`, so callers decide how to handle it\n- [ ] `SMTP_URL`, which can contain a password, never appears in logs or error messages\n\n## Technical notes\n\n- Relevant code: there's no existing email code, so this adds a new folder, `src/email/`. Config elsewhere is read straight from `process.env` (`src/server.ts` reads `DB_PATH` and `PORT`). Follow that pattern rather than adding a config library.\n- Approach:\n  - New file `src/email/mailer.ts` exporting `Mailer`, `createSmtpMailer()`, `createConsoleMailer()`, `createMemoryMailer()`, and `createMailerFromEnv(env = process.env)`.\n  - `nodemailer.createTransport(url)` accepts a connection URL (`smtp://` or `smtps://user:pass@host:port`), which covers SES, SendGrid, Postmark, and internal relays.\n  - Let `createSmtpMailer()` take an optional nodemailer transport or options object, so tests can pass `{ jsonTransport: true }` and avoid the network.\n  - Add `nodemailer` to `dependencies` and `@types/nodemailer` to `devDependencies`.\n- Watch out for:\n  - The project is ESM (`\"type\": \"module\"`), and local imports use `.js` suffixes (for example `./routes/todos.js`). Match that.\n  - `MAIL_TRANSPORT` defaults to `console` so a dev machine never emails real people by accident. Production sets `smtp` explicitly (#7).\n- Same wave: #2 only touches `src/db/migrations/` and the `Todo` interface, so there's no overlap.\n\n## Verification\n\n- Automated:\n  - New `tests/mailer.test.ts` covering env parsing (the default is console, smtp with full config works, missing variables throw, an unknown transport throws).\n  - The memory mailer records messages.\n  - The console mailer writes to stdout (spy on `console.log`).\n  - The SMTP mailer, given `{ jsonTransport: true }`, produces the right From, To, Subject, and text.\n  - Run `npm test` and `npm run lint`.\n- Manual:\n  - Start a local SMTP catcher, for example Mailpit: `docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit`.\n  - Set `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtp://localhost:1025`, and `MAIL_FROM=todos@example.com`.\n  - Call `send()` from a scratch script with `npx tsx` and check that the message appears at http://localhost:8025.\n",
+          "state": "open",
+          "labels": [
+            "enabler",
+            "size: S",
+            "priority: medium",
+            "backend",
+            "email"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": 1,
+          "blocked_by": [],
+          "sub_issues": []
+        },
+        {
+          "number": 4,
+          "id": 1004,
+          "title": "Todo API lets clients set, change, and clear a due date",
+          "body": "**Epic:** #1 \u00b7 **Blocked by:** #2 \u00b7 **Size:** S\n\n## Context\n\n\"Add due dates to todos\" (chat request, 2026-11-06). After #2 the `due_date` column exists, but the API can't write to it. This ticket makes due dates settable by any client, and the web UI (#6) builds on it. The reminder job (#5) only reads the column, so it doesn't wait for this ticket.\n\n## Scope\n\n**In scope**\n- `POST /api/todos` accepts an optional `due_date`, either `\"YYYY-MM-DD\"` or `null`.\n- `PATCH /api/todos/:id` accepts `due_date`: a date sets or changes it, `null` clears it, and leaving the key out keeps the current value.\n- Validation: the value must be a real calendar date in `YYYY-MM-DD` format. Anything else returns 400 with the existing zod error shape.\n- Every todo in a response includes `due_date` (`null` when unset).\n\n**Out of scope**\n- The web UI (#6)\n- Sorting or filtering by due date, and overdue status (non-goals for this epic)\n- Due times or timezones\n- Rejecting past dates (past dates are allowed)\n- Reminder emails (#5)\n\n## Acceptance criteria\n\n- [ ] `POST /api/todos` with `{ \"title\": \"Pay rent\", \"due_date\": \"2026-12-01\" }` returns 201, and the body has `\"due_date\": \"2026-12-01\"`\n- [ ] `POST /api/todos` without `due_date` returns 201 with `\"due_date\": null`, so existing clients keep working\n- [ ] `PATCH /api/todos/:id` with `{ \"due_date\": \"2026-12-02\" }` changes the date, and `{ \"due_date\": null }` clears it\n- [ ] `PATCH /api/todos/:id` with `{ \"done\": true }` and no `due_date` key leaves the due date unchanged\n- [ ] `\"2026-02-30\"`, `\"2026-13-01\"`, `\"12/01/2026\"`, `\"2026-12-01T09:00:00Z\"`, and `\"\"` are each rejected with 400, and nothing is written\n- [ ] Setting the due date on another user's todo returns 404, the same as any other `PATCH` on it today\n- [ ] `GET /api/todos` returns `due_date` on every todo\n\n## Technical notes\n\n- Relevant code:\n  - `src/schemas/todo.ts`: `createTodoSchema` and `updateTodoSchema`\n  - `src/services/todoService.ts`: the `INSERT` in `create()`, and the `UPDATE ... SET title = ?, done = ?` in `update()`, which merges `{ ...current, ...input }`\n  - `src/routes/todos.ts`: the POST and PATCH handlers already pass `parsed.data` through and return 400 with `parsed.error.flatten()`, so they probably need no changes\n- Approach:\n  - Define one shared `isoDate` zod schema: `z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/)` plus a `.refine()` that round-trips through `Date` (for example, `new Date(s + \"T00:00:00Z\").toISOString().slice(0, 10) === s`) to reject impossible dates.\n  - Use `isoDate.nullable().optional()` in both schemas.\n  - Add `due_date` to the `INSERT` in `create()` (`input.due_date ?? null`) and to the `SET` list in `update()`.\n- Naming: the field is `due_date` (snake_case) in requests and responses. That matches `user_id` and `created_at`, which are returned as raw column names through `toTodo()`.\n- Watch out for:\n  - The `{ ...current, ...input }` merge only keeps the current date when zod leaves absent keys out of the output. `.optional()` does that. Don't add `.default(null)`, or every `PATCH` will clear the date.\n  - Same wave: #5 (the reminder job) runs alongside this ticket. It's scoped to keep its query in `src/reminders/` and its tests in a new file, so it shouldn't touch `src/schemas/todo.ts`, `src/services/todoService.ts`, or `tests/todos.test.ts`. If it ends up needing to, coordinate.\n\n## Verification\n\n- Automated: add one test per acceptance criterion to `tests/todos.test.ts`. Reuse the existing `beforeEach`, which uses an in-memory DB with user 1. Include a second user to cover the 404 case. Run `npm test` and `npm run lint`.\n- Manual:\n  - Run `npm run dev`.\n  - Create a todo with a date: `curl -X POST http://localhost:3000/api/todos -H \"X-User-Id: 1\" -H \"Content-Type: application/json\" -d \"{\\\"title\\\":\\\"x\\\",\\\"due_date\\\":\\\"2026-12-01\\\"}\"`\n  - Send a `PATCH` with `\"due_date\": null` and check that the date clears.\n  - If your local `todo.db` has no users, insert one first, as the tests do.\n",
+          "state": "open",
+          "labels": [
+            "feature",
+            "size: S",
+            "priority: medium",
+            "backend",
+            "api"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": 1,
+          "blocked_by": [
+            1002
+          ],
+          "sub_issues": []
+        },
+        {
+          "number": 5,
+          "id": 1005,
+          "title": "Users get one morning email listing their open todos due today",
+          "body": "**Epic:** #1 \u00b7 **Blocked by:** #2, #3 \u00b7 **Size:** M\n\n## Context\n\n\"A reminder email in the morning for anything that's due that day\" (chat request, 2026-11-06). This ticket builds the job: it finds each user's open todos due on a given date and sends that user one digest email. It's safe to re-run. #7 schedules it in production, so until then nothing is sent automatically.\n\n## Scope\n\n**In scope**\n- A function, `sendDueReminders({ db, mailer, date, dryRun })`\n- Selection: todos with `due_date = date` and `done = 0`, grouped by user, sent to `users.email`\n- One plain-text email per user per date (a subject plus the list of titles). Users with nothing due get no email.\n- Idempotency: a new `reminder_sends` table (migration `003`) with one row per (user, date), written after a successful send. Users who already have a row for that date are skipped.\n- Partial failure: a failed send for one user is logged and counted, doesn't stop the other users, and isn't recorded, so a re-run retries that user.\n- A CLI entry point and `npm run job:due-reminders`, with `--date YYYY-MM-DD` and `--dry-run` options\n- \"Today\" is computed in `REMINDER_TIMEZONE` (an IANA name), which defaults to the host's timezone.\n- README: how to run the job, and its env vars (`REMINDER_TIMEZONE`, `APP_BASE_URL`, plus the mail vars from #3)\n\n**Out of scope**\n- Running the job on a schedule, and production config (#7)\n- The mail transport itself (#3)\n- Overdue todos (due before the run date), which aren't included\n- Per-user timezones, opt-out or preferences, and HTML email\n- Setting due dates through the API (#4). Tests insert rows directly.\n\n## Acceptance criteria\n\n- [ ] Given user A has two open todos and one done todo due 2026-11-09, when the job runs with `--date 2026-11-09`, then A receives exactly one email listing only the two open titles\n- [ ] The subject is \"You have 1 todo due today\" or \"You have N todos due today\". The body greets the user by `display_name`, lists each title on its own line, and links to the app when `APP_BASE_URL` is set.\n- [ ] A's email never includes todos due on other dates, todos with no due date, or other users' todos\n- [ ] A user with no open todos due on that date gets no email\n- [ ] Running the job twice for the same date sends each user at most one email\n- [ ] If the send to user A fails, user B still gets their email and the job exits non-zero. Re-running for the same date then emails A only.\n- [ ] `--dry-run` prints who would get which todos, and sends and records nothing\n- [ ] Without `--date`, the date is \"today\" in `REMINDER_TIMEZONE`. For example, at 2026-11-06T23:30Z it's `2026-11-06` for `America/Los_Angeles` and `2026-11-07` for `Asia/Tokyo`.\n- [ ] An invalid timezone name exits with a clear error before anything is sent\n- [ ] The job ends by printing a one-line summary: the date, how many were sent, how many were skipped as already sent, and how many failed\n\n## Technical notes\n\n- Relevant code:\n  - `src/db/index.ts: openDb()` opens the DB, enables WAL, and runs migrations. The job should call `openDb(process.env.DB_PATH ?? \"todo.db\")`, the same way `src/server.ts` and `src/db/migrate.ts` do.\n  - The `users(id, email, display_name)` and `todos` tables are in `src/db/migrations/001_create_users_todos.sql`, and `due_date` comes from #2.\n  - `Mailer`, `createMailerFromEnv()`, and `createMemoryMailer()` are in `src/email/mailer.ts` (#3).\n- Approach:\n  - New migration `src/db/migrations/003_create_reminder_sends.sql`: `reminder_sends(user_id INTEGER NOT NULL REFERENCES users(id), reminder_date TEXT NOT NULL, todo_count INTEGER NOT NULL, sent_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (user_id, reminder_date))`\n  - New file `src/reminders/dueReminders.ts`:\n    - One query that joins `todos` and `users` with `due_date = ? AND done = 0`, excluding users who already have a `reminder_sends` row for that date.\n    - Group the rows by user in JS, send, and insert the `reminder_sends` row after each successful send.\n  - `todayIn(timeZone, now = new Date())`: `Intl.DateTimeFormat(\"en-CA\", { timeZone, year: \"numeric\", month: \"2-digit\", day: \"2-digit\" }).format(now)` returns `YYYY-MM-DD`, so no date library is needed. An invalid zone throws a `RangeError`, which the CLI turns into a clear message.\n  - New file `src/jobs/sendDueReminders.ts`:\n    - Parse `--date` and `--dry-run` from `process.argv`.\n    - Build the mailer with `createMailerFromEnv()`, call `sendDueReminders()`, and print the summary.\n    - Set `process.exitCode = 1` if anything failed, and close the DB.\n  - In `package.json`, add `\"job:due-reminders\": \"tsx src/jobs/sendDueReminders.ts\"`, next to the existing `db:migrate` script.\n- Semantics: because the row is recorded after the send, delivery is at-least-once. If the process dies between the send and the insert, that user can get a duplicate on re-run. That's acceptable for reminders, so don't over-engineer it.\n- Watch out for:\n  - Same wave: #4 edits `src/schemas/todo.ts`, `src/services/todoService.ts`, and `tests/todos.test.ts`. Keep this ticket's query in `src/reminders/` and its tests in a new file, so the two don't conflict.\n  - Migration numbering: #2 owns `002_`, so this file must be `003_`.\n  - The server holds the same SQLite file open. `openDb()` turns on WAL mode, so a separate job process can read and write alongside it.\n  - Titles are user input. The email is plain text, so there's no HTML escaping to worry about. Keep it plain text.\n\n## Verification\n\n- Automated:\n  - New `tests/dueReminders.test.ts`. Copy the setup from `tests/todos.test.ts` (`new Database(\":memory:\")`, `migrate(db)`, insert users) and use `createMemoryMailer()`.\n  - Write one test per acceptance criterion, plus `todayIn` tests with fixed instants.\n  - For the partial-failure case, use a mailer that throws for one recipient.\n  - Run `npm test` and `npm run lint`.\n- Manual:\n  - Run `npm run dev` and give one of your todos today's date (with #4's API if it's merged, otherwise directly in SQLite).\n  - Run `npm run job:due-reminders -- --dry-run` and check that the output lists that todo.\n  - Run `npm run job:due-reminders` with the default console mailer and check that the email is printed.\n  - Run it again and check that the summary reports the user as skipped.\n",
+          "state": "open",
+          "labels": [
+            "feature",
+            "size: M",
+            "priority: medium",
+            "backend",
+            "email"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": 1,
+          "blocked_by": [
+            1002,
+            1003
+          ],
+          "sub_issues": []
+        },
+        {
+          "number": 6,
+          "id": 1006,
+          "title": "Users can set, see, change, and clear a due date in the web app",
+          "body": "**Epic:** #1 \u00b7 **Blocked by:** #4 \u00b7 **Size:** S\n\n## Context\n\n\"Add due dates to todos\" (chat request, 2026-11-06). People need to set due dates and see them in the web app (`public/`), not just through the API. This ticket uses the `due_date` field that #4 adds to `POST` and `PATCH /api/todos`.\n\n## Scope\n\n**In scope**\n- An optional date input on the new-todo form (`#new-todo`)\n- Each todo row shows its due date in a date input that can be changed or cleared in place\n- Changing or clearing the date sends `PATCH /api/todos/:id` with `{ \"due_date\": ... }` (`null` when cleared) and then re-renders the list\n\n**Out of scope**\n- API changes or validation (#4)\n- Overdue or due-today highlighting, and sorting or filtering by due date (non-goals for this epic)\n- Creating `public/styles.css` or any restyling (see Technical notes)\n- Reminder emails (#5)\n\n## Acceptance criteria\n\n- [ ] Given I enter a title and pick a date, when I click Add, then the new todo appears with that date\n- [ ] Given I enter only a title, when I click Add, then the todo is created with an empty date, as it is today\n- [ ] Given a todo with a due date, when I pick a different date in its row, then the change is saved and survives a page reload\n- [ ] Given a todo with a due date, when I clear its date field, then the todo has no due date after a reload\n- [ ] Checking or unchecking \"done\" and deleting still work, and neither changes the due date\n- [ ] Each row's date input has an accessible name that includes the todo's title (for example, `aria-label=\"Due date for Buy milk\"`), and the form's date input is labelled too\n- [ ] Todo titles are still rendered as text, not HTML\n\n## Technical notes\n\n- Relevant code:\n  - `public/index.html`: the `#new-todo` form has a single `title` input.\n  - `public/app.js`, `render()`: builds each `<li>` from an `innerHTML` template, sets the title with `textContent`, and wires the checkbox's `onchange` and the delete button's `onclick`.\n  - `public/app.js`, the submit handler: posts `{ title }`.\n- Approach:\n  - Add `<input type=\"date\" name=\"due_date\" aria-label=\"Due date\">` to the form. In the submit handler, send `due_date: formData.get(\"due_date\") || null`.\n  - In `render()`, add `<input type=\"date\" class=\"due\">` to the row template. After creating the row, set `.value = t.due_date ?? \"\"` and the `aria-label` through DOM properties.\n  - Wire `onchange` to `api(`/${t.id}`, { method: \"PATCH\", body: JSON.stringify({ due_date: e.target.value || null }) }).then(render)`.\n  - A native `<input type=\"date\">` always gives back `YYYY-MM-DD`, which matches the API format, so no date parsing is needed.\n- Watch out for:\n  - The done checkbox is currently selected with `li.querySelector(\"input\")`. Once a row has a second `<input>`, make that selector specific (for example, `input[type=checkbox]`), or the done toggle may bind to the wrong element.\n  - Don't interpolate `t.due_date` or `t.title` into the `innerHTML` string. Set values through properties, as the title already is.\n  - `public/index.html` links `styles.css`, which doesn't exist in `public/`. That's pre-existing, so leave it alone here.\n  - The repo has no frontend tests, and `npm run lint` only covers `src` and `tests`, so this ticket is verified by hand.\n- Same wave: #7 (production scheduling) doesn't touch `public/`.\n\n## Verification\n\n- Automated: no UI test setup exists. Run `npm test` to confirm the API still passes.\n- Manual:\n  - Run `npm run dev`, open http://localhost:3000, and go through each acceptance criterion, reloading between steps.\n  - In DevTools > Network, check that a date change sends a `PATCH` with only `due_date` in the body.\n  - Using only the keyboard, tab to a row's date input, change it, and confirm it saves.\n",
+          "state": "open",
+          "labels": [
+            "feature",
+            "size: S",
+            "priority: medium",
+            "frontend"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": 1,
+          "blocked_by": [
+            1004
+          ],
+          "sub_issues": []
+        },
+        {
+          "number": 7,
+          "id": 1007,
+          "title": "Reminder job runs automatically every morning in production",
+          "body": "**Epic:** #1 \u00b7 **Blocked by:** #5 \u00b7 **Size:** S\n\n## Context\n\n\"A reminder email in the morning for anything that's due that day\" (chat request, 2026-11-06). #5 provides `npm run job:due-reminders`. This ticket makes it run every morning in production with real email. Nothing in the repo shows how production runs (there's no Dockerfile, CI config, or process manager config), so the first step is to confirm that with whoever deploys `todo-app`.\n\n## Scope\n\n**In scope**\n- Choose the production SMTP provider or relay and a from-address, and store `SMTP_URL` as a secret\n- Set production env for the job: `MAIL_TRANSPORT=smtp`, `SMTP_URL`, `MAIL_FROM`, `REMINDER_TIMEZONE`, `APP_BASE_URL`, and `DB_PATH` (the same file the server uses)\n- Schedule a run at 08:00 in `REMINDER_TIMEZONE` every day, using whatever runs production: crontab, a systemd timer, a Kubernetes CronJob, or the platform's scheduler\n- Make failed runs (non-zero exit) visible to the team\n- Add a README section on reminders in production: where the schedule lives, the env vars, and how to run the job by hand or re-run it\n\n**Out of scope**\n- Changing the job's logic or the email content (#5)\n- Per-user send times or timezones (non-goal)\n- Dashboards or metrics beyond surfacing failures\n\n## Acceptance criteria\n\n- [ ] `npm run job:due-reminders -- --dry-run` (or its compiled equivalent), run in production, lists the expected recipients for today and sends nothing\n- [ ] On the first scheduled morning, a teammate with an open todo due that day gets exactly one reminder from `MAIL_FROM`, and a teammate with nothing due gets nothing\n- [ ] The scheduled job reads and writes the same SQLite file as the running server (`DB_PATH`)\n- [ ] A failed run shows up somewhere the team will notice (cron mail, a log alert, or the platform's failed-job view), and the README says where\n- [ ] The README documents the schedule, the env vars, and how to re-send a missed day with `npm run job:due-reminders -- --date YYYY-MM-DD`\n- [ ] `SMTP_URL` lives in the secret store and isn't committed to the repo\n\n## Technical notes\n\n- Relevant code:\n  - `src/server.ts`: production reads `DB_PATH` and `PORT`.\n  - `package.json`: `start` is `node dist/server.js` after `build` (`tsc -p .`), and `tsx` is a devDependency.\n- Approach: run the job the same way the server runs. If production runs the compiled `dist/`, the job is `node dist/jobs/sendDueReminders.js`. If dev dependencies are installed there, `npm run job:due-reminders` works as is.\n- Watch out for:\n  - SQLite is a local file, so the job has to run on the same host or volume as the server. A separate container needs the same volume mounted.\n  - I didn't find a `tsconfig.json` in the repo, and `src/db/index.ts` reads `.sql` migrations from `import.meta.dirname/migrations`, which `tsc` doesn't copy into `dist/`. Check how production handles migrations today before choosing the compiled path.\n  - Timezones: the scheduler's clock has to match `REMINDER_TIMEZONE`. Use a Kubernetes CronJob's `spec.timeZone`, or for crontab, leave `REMINDER_TIMEZONE` unset so the job falls back to the host timezone, as cron does.\n  - Re-runs are safe, because #5 records each send per user per date.\n- Same wave: #6 only touches `public/`, so there's no overlap.\n\n## Verification\n\n- Automated: none, since this is an ops change. If any repo files change (README, deploy config), run `npm test`.\n- Manual:\n  - Run the dry run in production. Compare its output with `SELECT user_id, title FROM todos WHERE due_date = '<today>' AND done = 0`.\n  - Create a todo due tomorrow for yourself and confirm the email arrives around 08:00 the next morning.\n  - Confirm `reminder_sends` has exactly one row for you for that date.\n  - Run the job again by hand and confirm no second email arrives.\n",
+          "state": "open",
+          "labels": [
+            "chore",
+            "size: S",
+            "priority: medium",
+            "ops",
+            "email"
+          ],
+          "assignees": [],
+          "milestone": null,
+          "type": null,
+          "parent": 1,
+          "blocked_by": [
+            1005
+          ],
+          "sub_issues": []
+        }
+      ],
+      "next_number": 8,
+      "milestones": [],
+      "created_labels": [
+        "epic",
+        "enabler",
+        "size: XS",
+        "priority: high",
+        "backend",
+        "database",
+        "size: S",
+        "priority: medium",
+        "email",
+        "feature",
+        "api",
+        "size: M",
+        "frontend",
+        "chore",
+        "ops"
+      ]
+    }
+  },
+  "orgs": {},
+  "projects": {},
+  "auth": {
+    "project_scope": true
+  },
+  "features": {
+    "dependencies": true
+  },
+  "fail": [],
+  "calls": []
+}

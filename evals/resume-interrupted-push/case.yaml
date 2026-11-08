@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: resume-interrupted-push
+expected_outcome: |
+  The earlier push created the epic (#1), T01 (#2) and T02 (#3), but crashed before T02's key was written to
+  its draft. The resumed push finds #3 by its title and links T02 to it instead of creating it again,
+  attaches it to the epic and adds its dependency on T01, then creates T03-T06. The board ends with
+  exactly seven issues and every draft records its key. The final message explains that T02 was found
+  on the board rather than recreated.
+context:
+  scaffold_script: place-files.sh

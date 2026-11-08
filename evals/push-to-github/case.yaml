@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: push-to-github
+expected_outcome: |
+  The reviewed epic and six tickets are pushed to the (simulated) GitHub repo exactly once: seven issues,
+  each ticket a sub-issue of the epic, blocked-by dependencies matching the drafts, the needed labels
+  created (the user allowed it), and every draft recording its issue key and URL. The epic's body is
+  updated afterwards so it links every ticket. The final message links the epic, lists the ticket keys,
+  and says where to start.
+context:
+  scaffold_script: place-files.sh

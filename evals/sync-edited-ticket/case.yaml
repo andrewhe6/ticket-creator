@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: sync-edited-ticket
+expected_outcome: |
+  All seven drafts were pushed earlier (#1 epic, #2-#7 tickets). T03 (#4) was edited afterwards: one new
+  acceptance criterion. The run identifies that only T03 changed, shows what changed, and updates #4 on
+  the board to include the new criterion, without touching the other tickets or creating anything.
+  Afterwards the T03 draft is recorded as in sync with the board.
+context:
+  scaffold_script: place-files.sh

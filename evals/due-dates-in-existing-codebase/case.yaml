@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: due-dates-in-existing-codebase
+expected_outcome: |
+  An epic plus roughly 4-9 small tickets drafted locally (nothing pushed to GitHub). Tickets are
+  grounded in the real todo-app code: they cite src/routes/todos.ts, src/services/todoService.ts,
+  src/schemas/todo.ts, the SQL migrations folder, public/app.js and tests/todos.test.ts where relevant,
+  and use `npm test` for verification. Each ticket has context, in/out of scope, a checklist of
+  acceptance criteria, technical notes and verification. No ticket is bigger than about a day,
+  dependencies form a DAG with some parallel work, and the epic records the assumptions made
+  (slicing strategy, time zone handling, email provider, opt-out) because the user was unavailable.
+context:
+  scaffold_script: place-files.sh

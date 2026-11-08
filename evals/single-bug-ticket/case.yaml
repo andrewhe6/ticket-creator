@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: single-bug-ticket
+expected_outcome: |
+  A single bug ticket drafted as a file (no epic), sized XS or S, with context and repro steps, scope, acceptance criteria, technical notes and verification. It is grounded in src/routes/todos.ts and src/schemas/todo.ts (updateTodoSchema accepts {} because both fields are optional), has acceptance criteria for the 400 on {} and for valid partial updates still working, verifies with npm test, has no placeholder text, and is not pushed.
+context:
+  scaffold_script: place-files.sh

@@ -1,0 +1,7 @@
+# skill-creator eval runs and packaged builds
+ticket-creator-workspace/
+dist/
+__pycache__/
+*.pyc
+# default state file of the stand-in GitHub CLI (tests/fake_gh.py) when FAKE_GH_STATE isn't set
+tests/fake_gh_state.json

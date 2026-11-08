@@ -1,0 +1,14 @@
+{
+  "name": "ticket-creator",
+  "displayName": "Ticket Creator",
+  "version": "0.2.0",
+  "description": "Break features, PRDs, codebases, or new-project ideas into modular, agent-ready tickets (epic + small vertical slices with acceptance criteria, technical notes, verification, estimates, and dependencies). Drafts locally, checks them for secrets, placeholders, and invented file paths, then pushes to GitHub Issues (one deterministic command via gh, safe to resume), Linear, or Jira (via MCP), and syncs later edits.",
+  "author": {
+    "name": "Andrew He",
+    "url": "https://github.com/andrewhe6"
+  },
+  "homepage": "https://github.com/andrewhe6/ticket-creator",
+  "repository": "https://github.com/andrewhe6/ticket-creator",
+  "license": "MIT",
+  "keywords": ["tickets", "issues", "backlog", "planning", "github-issues", "linear", "jira", "kanban", "mcp"]
+}

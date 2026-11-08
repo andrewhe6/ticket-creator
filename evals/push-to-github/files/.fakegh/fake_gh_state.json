@@ -1,0 +1,27 @@
+{
+  "repos": {
+    "acme-example-org/todo-app": {
+      "visibility": "PRIVATE",
+      "viewerPermission": "WRITE",
+      "isArchived": false,
+      "labels": [
+        "bug",
+        "enhancement",
+        "documentation"
+      ],
+      "issues": [],
+      "next_number": 1,
+      "milestones": []
+    }
+  },
+  "orgs": {},
+  "projects": {},
+  "auth": {
+    "project_scope": true
+  },
+  "features": {
+    "dependencies": true
+  },
+  "fail": [],
+  "calls": []
+}

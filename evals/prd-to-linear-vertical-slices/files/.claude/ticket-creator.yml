@@ -1,0 +1,16 @@
+version: 1
+platform: linear
+drafts_dir: tickets
+defaults:
+  priority: medium
+  max_size: M
+  labels: []
+  create_missing_labels: ask
+type_labels: { feature: Feature, enabler: Enabler, bug: Bug, chore: Chore, spike: Spike }
+estimates: { XS: 1, S: 2, M: 3, L: 5, XL: 8 }
+linear:
+  team: ENG
+  epic_as: project
+  state: Backlog
+  cycle: none
+  estimate_scale: fibonacci
