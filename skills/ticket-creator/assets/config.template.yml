@@ -47,7 +47,7 @@ github:
   epic_label: epic
   use_issue_types: auto   # auto (use org issue types if they exist) | true | false
   size_as: label          # label -> "size: M" | project_field
-  priority_as: label      # label -> "priority: high" | project_field | issue_field
+  priority_as: label      # label -> "priority: high" | project_field | issue_field (MCP pushes only)
   project:                # optional GitHub Projects (v2) board; delete the block if unused
     owner: owner          # org or user login that owns the project
     number: 1

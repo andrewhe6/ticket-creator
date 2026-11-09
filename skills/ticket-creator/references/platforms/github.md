@@ -39,7 +39,8 @@ It reads `github.repo` and the other `github.*` settings from the config. In ord
 1. **Validates** the drafts. Errors (including credentials in a draft) stop it with exit 1.
 2. **Preflights**, read-only: repo access (write needed; archived repos refused), visibility, labels,
    milestones, org issue types, and the project board's fields.
-3. **Reconciles** with the board: lists recent issues and matches pending drafts by exact title. A draft
+3. **Reconciles** with the board: lists the repo's issues (open and closed, up to 1000) and matches
+   pending drafts by exact title. A draft
    whose create was interrupted (`push_started`, no key) is linked to its issue instead of being created
    twice. Any other match stops the push so the user can decide.
 4. **Creates** the epic, then the tickets in dependency order: body from `tickets.py body`, labels

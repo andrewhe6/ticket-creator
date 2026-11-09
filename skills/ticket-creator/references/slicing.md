@@ -23,7 +23,7 @@ Each ticket should be:
 | XS | ≤ 1 hour | Config change, copy change, a flag, a one-function fix |
 | S | ≤ half a day | One endpoint or one component with tests |
 | M | ~ 1 day | A thin end-to-end slice across 2–3 layers with tests |
-| L | 2–3 days | **Split it** (the validator warns), unless the user explicitly accepts it |
+| L | 2–3 days | **Split it** (the validator warns when a size is over `max_size`), unless the user explicitly accepts it |
 | XL | a week or more | That's an epic, not a ticket. The validator rejects it |
 
 Estimate for one competent developer who is new to this code area. Include tests in the estimate.

@@ -80,6 +80,7 @@ multi-line strings, or lists of mappings.
 
 | Key | Default | Meaning |
 |---|---|---|
+| `version` | `1` | Config format version |
 | `platform` | none | `github`, `linear`, `jira`, or `markdown` |
 | `drafts_dir` | `tickets` | Where epic folders are written, relative to the project root |
 | `template` | none | Path to the team's ticket template. Its `##` headings become the required sections (see `ticket-format.md`) |
@@ -94,8 +95,8 @@ multi-line strings, or lists of mappings.
 | `github.repo` | none | `owner/name` |
 | `github.cli` | `gh` | Command that runs the GitHub CLI, if it isn't `gh` on the PATH |
 | `github.epic_label` | `epic` | Label marking the epic issue |
-| `github.use_issue_types` | `auto` | Use org issue types (Feature/Task/Bug) when `list_issue_types` returns them |
-| `github.size_as`, `github.priority_as` | `label` | `label` (`size: M`, `priority: high`), `project_field`, or `issue_field` (priority only) |
+| `github.use_issue_types` | `auto` | `auto`, `true`, or `false`. Use the org's issue types (Feature/Task/Bug) when it defines them |
+| `github.size_as`, `github.priority_as` | `label` | `label` (`size: M`, `priority: high`) or `project_field`. `priority_as` also accepts `issue_field`, which only the MCP path sets; `tickets.py push` leaves priority unset in that mode |
 | `github.project.*` | none | Projects (v2) board: owner, number, status field/value, size/priority field names |
 | `linear.team` | none | Team key, e.g. `ENG` |
 | `linear.epic_as` | `project` | `project` or `parent_issue` |

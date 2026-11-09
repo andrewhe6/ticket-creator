@@ -41,8 +41,8 @@ are hints; delete them or keep them. Put **double quotes** around:
 | `priority` | no | What the user said, otherwise the highest priority among its tickets |
 | `labels` | no | Extra labels for the epic itself |
 | `blocked_by` | no | Other epic folder slugs (greenfield ordering) |
-| `source` | yes | Where the requirements came from (doc path, "chat <date>", "codebase scan of src/x") |
-| `slicing` | yes | `vertical+enablers` / `vertical` / `horizontal`, whichever the interview chose |
+| `source` | yes | Where the requirements came from (doc path, "chat <date>", "codebase scan of src/x"). Not checked by `validate`, but later runs rely on it |
+| `slicing` | yes | `vertical+enablers` / `vertical` / `horizontal`, whichever the interview chose. `validate` warns on any other value |
 | `existing` | no | `true` = attach to an epic already on the board (fill `remote_*`); its body is never edited |
 | `due`, `milestone`, `links` | no | Same as on tickets (below) |
 | `remote_*` | no | Written by `tickets.py set-remote` / `push` |
@@ -149,7 +149,8 @@ notes hold a lot of code.
 ## Epic body sections
 
 `## Goal`, `## Background`, `## Non-goals`, `## Assumptions & open questions`, `## Existing work`,
-`## Definition of done`, `## Plan`. The Plan section holds the generated block between the
+`## Definition of done`, `## Plan`. `validate` requires Goal and Non-goals (Non-goals may say "None");
+fill in the rest as the templates describe. The Plan section holds the generated block between the
 `ticket-creator:generated` markers. Leave the markers in place, never edit between them, and run
 `tickets.py render` after any ticket change. `validate` warns when the block is out of date.
 

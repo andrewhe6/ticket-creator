@@ -1,6 +1,7 @@
 ---
 name: ticket-creator
 description: Break features, PRDs/specs, codebases, or new-project ideas into modular, implementation-ready tickets (an epic plus small, independently shippable tickets with scope, acceptance criteria, codebase-grounded technical notes, verification, sizes, and dependencies), draft them as local markdown for review, then push them to GitHub Issues, Linear, or Jira, or sync edits to tickets it already pushed. Use when the outcome is tickets, issues, stories, or a backlog - creating tickets/issues/epics, turning a PRD or spec into a backlog, filling a board, scoping a new project into a starting backlog, ticketing the gaps in a codebase, preparing work for engineers or AI agents, pushing or resuming drafted tickets, or filing one well-formed bug or task - even if they never say "ticket" ("make issues for this", "split this into work items for the team"). Not for designing code structure or answering how to implement something, unless they want the result as tickets.
+license: MIT
 ---
 
 # Ticket Creator
@@ -304,7 +305,7 @@ When a pushed draft is edited, `validate` warns and `plan` marks it `"changed"`.
 Only with their explicit OK:
 
 - **GitHub:** `tickets.py push <folder> --update --dry-run` shows the exact diff against the board, then
-  `--update` applies it. It updates the title and body, adds new labels and swaps the size/priority
+  `--update` applies it. It updates the title and body, adds new labels and swaps the size/priority/type
   labels, adds and removes the dependencies it created, and records the new fingerprint. It never
   overwrites an issue that was edited on the board since its push, a closed issue, or an issue it only
   linked (`--adopt`); it reports those as conflicts. Offer to post the change as a comment instead.
